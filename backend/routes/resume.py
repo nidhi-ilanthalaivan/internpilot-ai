@@ -1,5 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 import fitz
+import sys
 
 from models.resume_schema import ResumeData
 from services.resume_parser import parse_resume
@@ -38,4 +39,6 @@ async def upload_resume(file: UploadFile = File(...)):
         return structured_data
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process resume: {str(e)}")
+                # CRITICAL: This line prints the exact Python error to your terminal window
+            print(f"💥 BACKEND CRASH ERROR: {str(e)}", file=sys.stderr)
+            raise HTTPException(status_code=500, detail=f"Failed to process resume: {str(e)}")
