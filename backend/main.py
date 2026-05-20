@@ -2,7 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes.resume import router as resume_router
 
+from database.config import engine
+from database import models
 
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -22,4 +25,4 @@ app.include_router(resume_router)
 
 @app.get("/")
 def root():
-    return {"message": "InternPilot backend running"}
+    return {"message": "InternPilot backend running with Database Memory enabled!"}
