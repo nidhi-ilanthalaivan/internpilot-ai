@@ -28,7 +28,7 @@ export default function ResumeUpload() {
 
     try {
       // Send the file to your FastAPI backend route
-      const response = await fetch('http://127.0.0.1:8000/upload-resume', {
+      const response = await fetch('http://127.0.0.1:8000/resume/upload', {
         method: 'POST',
         body: formData,
       });
