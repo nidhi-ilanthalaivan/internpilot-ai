@@ -2,9 +2,16 @@
 
 import { useState } from 'react';
 
+interface ResumeData {
+  skills: string[];
+  projects: string[];
+  experience: string[];
+  education: string[];
+}
+
 export default function ResumeUpload() {
   const [file, setFile] = useState<File | null>(null);
-  const [extractedText, setExtractedText] = useState<string>('');
+  const [parsedData, setParsedData] = useState<ResumeData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -15,62 +22,57 @@ export default function ResumeUpload() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      alert('Please select a file first!');
-      return;
-    }
+    if (!file) return;
 
     setLoading(true);
-
-    // Prepare the file using FormData
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      // Send the file to your FastAPI backend route
       const response = await fetch('http://127.0.0.1:8000/resume/upload', {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        throw new Error(`Server returned status: ${response.status}`);
       }
 
-      const data = await response.json();
-      // Store the extracted text into state
-      setExtractedText(data.resume_text);
+      const data: ResumeData = await response.json();
+      console.log("🔥 DATA ARRIVED FROM BACKEND:", data); // Watch your F12 console for this!
+      setParsedData(data);
     } catch (error) {
-      console.error('Error uploading file:', error);
-      alert('Something went wrong during the upload.');
+      console.error('Frontend Upload Error:', error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: '20px', border: '1px solid #ccc', margin: '20px' }}>
-      <h3>Resume Upload (Functional Only)</h3>
+    <div style={{ padding: '20px', border: '1px solid #444', borderRadius: '8px', margin: '20px' }}>
+      <h3 style={{ color: '#fff' }}>Resume Upload (Structured AI Mode)</h3>
       
       <form onSubmit={handleUpload}>
-        <input type="file" accept=".pdf" onChange={handleFileChange} />
-        <button type="submit" disabled={loading}>
-          {loading ? 'Uploading...' : 'Upload & Extract'}
+        <input type="file" accept=".pdf" onChange={handleFileChange} style={{ color: '#fff' }} />
+        <button type="submit" disabled={loading} style={{ padding: '8px 16px', cursor: 'pointer' }}>
+          {loading ? 'Processing via Gemini...' : 'Upload & Parse'}
         </button>
       </form>
 
-      {/* Display the extracted text on the screen */}
-      {extractedText && (
-        <div style={{ marginTop: '20px' }}>
-          <h4>Extracted Text View:</h4>
-          <pre style={{ 
-            background: '#f4f4f4', 
-            padding: '15px', 
-            whiteSpace: 'pre-wrap', 
-            color: '#333' 
-          }}>
-            {extractedText}
-          </pre>
+      {/* Structured UI display container */}
+      {parsedData && (
+        <div style={{ marginTop: '20px', background: '#222', padding: '15px', borderRadius: '6px', color: '#fff', textAlign: 'left' }}>
+          <h4 style={{ borderBottom: '1px solid #444', paddingBottom: '5px' }}>Parsed Resume Schema:</h4>
+          <p><strong>💡 Skills:</strong> {parsedData.skills?.join(', ') || 'None found'}</p>
+          
+          <p><strong>🚀 Projects:</strong></p>
+          <ul>{parsedData.projects?.map((p, i) => <li key={i}>{p}</li>)}</ul>
+
+          <p><strong>💼 Experience:</strong></p>
+          <ul>{parsedData.experience?.map((e, i) => <li key={i}>{e}</li>)}</ul>
+
+          <p><strong>🎓 Education:</strong></p>
+          <ul>{parsedData.education?.map((edu, i) => <li key={i}>{edu}</li>)}</ul>
         </div>
       )}
     </div>
