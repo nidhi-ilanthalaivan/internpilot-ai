@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface ResumeData {
   skills: string[];
@@ -33,6 +33,7 @@ export default function ResumeUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ResumeData | null>(null);
   const [uploadLoading, setUploadLoading] = useState<boolean>(false);
+  const [memoryLoading, setMemoryLoading] = useState<boolean>(true);
 
   // Job Matching States
   const [jobDescription, setJobDescription] = useState<string>('');
@@ -47,6 +48,25 @@ export default function ResumeUpload() {
   const [answers, setAnswers] = useState<{ [key: number]: string }>({});
   const [evaluations, setEvaluations] = useState<{ [key: number]: any }>({});
   const [evalLoading, setEvalLoading] = useState<{ [key: number]: boolean }>({});
+
+  // 🧠 AUTOMATIC COGNITIVE MEMORY RESTORATION LAYER
+  useEffect(() => {
+    async function restoreSessionMemory() {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/resume/latest');
+        if (response.ok) {
+          const storedProfile: ResumeData = await response.json();
+          setParsedData(storedProfile);
+          console.log("🎯 InternPilot Memory Engine: Restored active profile from DB layers.");
+        }
+      } catch (error) {
+        console.log("ℹ️ No profile history found in backend memory yet.");
+      } finally {
+        setMemoryLoading(false);
+      }
+    }
+    restoreSessionMemory();
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -171,9 +191,30 @@ export default function ResumeUpload() {
     }
   };
 
+  if (memoryLoading) {
+    return (
+      <div style={{ maxWidth: '800px', margin: '40px auto', textAlign: 'center', color: '#aaa', fontFamily: 'sans-serif' }}>
+        <p>⚡ Synchronizing data arrays with local database memory...</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px', fontFamily: 'sans-serif' }}>
       
+      {/* 🧠 MEMORY ESTABLISHED NOTIFICATION BADGE */}
+      {parsedData && (
+        <div style={{ background: 'rgba(76,175,80,0.1)', border: '1px solid #4caf50', borderRadius: '4px', padding: '10px 15px', color: '#4caf50', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', fontSize: '13px' }}>
+          <span><strong>🧠 Persistent Profile Linked:</strong> Your extracted experiences and skills are safely mounted inside context state.</span>
+          <button 
+            onClick={() => { setParsedData(null); setMatchResult(null); setQuestionsPrep(null); }} 
+            style={{ background: 'none', border: 'none', color: '#ff9800', cursor: 'pointer', textDecoration: 'underline', fontSize: '12px' }}
+          >
+            Clear State Cache
+          </button>
+        </div>
+      )}
+
       {/* SECTION 1: Resume Ingestion */}
       <div style={{ padding: '20px', border: '1px solid #444', borderRadius: '8px', background: '#1e1e1e', color: '#fff', marginBottom: '20px' }}>
         <h3>1. Resume Parser Ingestion Pipeline</h3>
@@ -189,7 +230,7 @@ export default function ResumeUpload() {
             <p style={{ color: '#4caf50' }}>✓ Resume data loaded securely into state memory and local database.</p>
             <details>
               <summary style={{ cursor: 'pointer', color: '#2196f3' }}>View Cached Data Details</summary>
-              <p><strong>Skills Found:</strong> {parsedData.skills.join(', ')}</p>
+              <p style={{ margin: '10px 0 0 0' }}><strong>Skills Found:</strong> {parsedData.skills.join(', ')}</p>
             </details>
           </div>
         )}
