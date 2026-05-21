@@ -125,3 +125,29 @@ async def score_interview_answer(payload: EvaluationRequest):
     except Exception as e:
         print(f"💥 BACKEND CRASH ERROR (EVAL): {str(e)}", file=sys.stderr)
         raise HTTPException(status_code=500, detail=f"Evaluation engine failed: {str(e)}")
+    
+@router.get("/latest", response_model=ResumeData)
+async def get_latest_resume(db: Session = Depends(get_db)):
+    try:
+        # Get the absolute most recent resume record from your database
+        db_resume = db.query(ResumeTable).order_by(ResumeTable.id.desc()).first()
+        
+        if not db_resume:
+            raise HTTPException(
+                status_code=404, 
+                detail="No profile history found in memory."
+            )
+            
+        # Re-map the flat database columns back directly into your clean ResumeData Pydantic schema
+        return ResumeData(
+            skills=db_resume.skills,
+            projects=db_resume.projects,
+            experience=db_resume.experience,
+            education=db_resume.education
+        )
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"💥 BACKEND CRASH ERROR (GET LATEST): {str(e)}", file=sys.stderr)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch profile history: {str(e)}")
