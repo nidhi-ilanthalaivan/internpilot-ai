@@ -49,6 +49,12 @@ export default function ResumeUpload() {
   const [evaluations, setEvaluations] = useState<{ [key: number]: any }>({});
   const [evalLoading, setEvalLoading] = useState<{ [key: number]: boolean }>({});
 
+  // 🎙️ Phase 3 Live Voice States
+  const [isVoiceActive, setIsVoiceActive] = useState<boolean>(false);
+  const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
+  const [aiTranscripts, setAiTranscripts] = useState<string[]>(["Click start to open audio channel..."]);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+
   // 🧠 AUTOMATIC COGNITIVE MEMORY RESTORATION LAYER
   useEffect(() => {
     async function restoreSessionMemory() {
@@ -67,6 +73,68 @@ export default function ResumeUpload() {
     }
     restoreSessionMemory();
   }, []);
+
+  // 🎙️ PHASE 3: VOICE STREAMING FUNCTIONS
+  const startVoiceInterviewChannel = () => {
+    const socket = new WebSocket("ws://127.0.0.1:8000/interview/stream");
+    setIsVoiceActive(true);
+
+    socket.onopen = () => {
+      console.log("🎙️ Connected to InternPilot Local Voice Pipeline");
+      socket.send(JSON.stringify({ event: "START_SESSION" }));
+    };
+
+    socket.onmessage = (event) => {
+      const responseData = JSON.parse(event.data);
+      if (responseData.event === "AI_SPEECH") {
+        setAiTranscripts(prev => [...prev, `🤖 AI: ${responseData.text}`]);
+        
+        // Cost-Free Text-to-Speech: Native Web Speech API Synthesis
+        const utterance = new SpeechSynthesisUtterance(responseData.text);
+        window.speechSynthesis.speak(utterance);
+      }
+    };
+
+    socket.onclose = () => {
+      console.log("🛑 Voice pipeline socket closed");
+      setIsVoiceActive(false);
+    };
+
+    setWsConnection(socket);
+    startLocalMicrophoneCapture(socket);
+  };
+
+  const startLocalMicrophoneCapture = async (activeSocket: WebSocket) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      
+      recorder.ondataavailable = async (e) => {
+        if (e.data.size > 0 && activeSocket.readyState === WebSocket.OPEN) {
+          const arrayBuffer = await e.data.arrayBuffer();
+          activeSocket.send(arrayBuffer); // Stream binary raw voice bytes up to python backend
+        }
+      };
+
+      // Slice audio chunks every 1000ms for continuous streaming processing
+      recorder.start(1000);
+      setMediaRecorder(recorder);
+    } catch (err) {
+      console.error("Microphone access blocked or unsupported:", err);
+      alert("Please unlock mic permissions to test live voice systems locally.");
+    }
+  };
+
+  const stopVoiceInterviewChannel = () => {
+    if (mediaRecorder) {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    }
+    if (wsConnection) {
+      wsConnection.close();
+    }
+    setIsVoiceActive(false);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -282,8 +350,35 @@ export default function ResumeUpload() {
               disabled={interviewLoading}
               style={{ width: '100%', padding: '12px', background: '#e91e63', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}
             >
-              {interviewLoading ? 'Compiling Custom Challenge Questions...' : '🚀 Initialize Voice Prep Mock Interview Loop'}
+              {interviewLoading ? 'Compiling Custom Challenge Questions...' : '🚀 Initialize Mock Interview Session'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/*🎙️ SECTION 3.5: PHASE 3 LOCAL REALTIME VOICE PREP GATEWAY */}
+      {matchResult && (
+        <div style={{ padding: '20px', border: '1px solid #2196f3', borderRadius: '8px', background: '#111625', color: '#fff', marginBottom: '20px' }}>
+          <h3 style={{ color: '#2196f3', marginTop: 0 }}>🎙️ Live Voice Simulation Room</h3>
+          <p style={{ fontSize: '13px', color: '#aaa' }}>Streams mic feed packages over standard binary WebSockets with browser synthesis speech loops.</p>
+          
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+            {!isVoiceActive ? (
+              <button onClick={startVoiceInterviewChannel} style={{ padding: '10px 20px', background: '#2196f3', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>
+                🟢 Connect & Speak
+              </button>
+            ) : (
+              <button onClick={stopVoiceInterviewChannel} style={{ padding: '10px 20px', background: '#f44336', border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>
+                🔴 Disconnect Session
+              </button>
+            )}
+          </div>
+
+          <div style={{ background: '#1c1c1f', padding: '12px', borderRadius: '6px', maxHeight: '180px', overflowY: 'auto', border: '1px solid #333' }}>
+            <strong style={{ fontSize: '12px', color: '#666', textTransform: 'uppercase' }}>Live Audio Communication Log:</strong>
+            {aiTranscripts.map((log, index) => (
+              <p key={index} style={{ margin: '6px 0', fontSize: '14px', color: log.startsWith('🤖') ? '#4caf50' : '#fff' }}>{log}</p>
+            ))}
           </div>
         </div>
       )}
@@ -330,7 +425,6 @@ export default function ResumeUpload() {
               {evaluations[q.id] && (
                 <div style={{ marginTop: '20px', padding: '20px', background: '#121214', borderRadius: '8px', border: '1px solid #2d2d30' }}>
                   
-                  {/* Clean Grid Header with Score Ring Representation */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #222', paddingBottom: '15px', marginBottom: '15px' }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <div style={{ 
@@ -351,7 +445,6 @@ export default function ResumeUpload() {
                     </div>
                   </div>
                   
-                  {/* Split Layout for Strengths vs Weaknesses */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '15px' }}>
                     <div>
                       <strong style={{ color: '#4caf50', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚡ Key Strengths</strong>
@@ -367,12 +460,10 @@ export default function ResumeUpload() {
                     </div>
                   </div>
 
-                  {/* Single Line Coaching Alert Badge */}
                   <div style={{ background: '#1a1625', borderLeft: '3px solid #9c27b0', padding: '10px 12px', borderRadius: '4px', marginBottom: '15px', fontSize: '13px', color: '#d1c4e9', lineHeight: '1.4' }}>
                     <strong>💡 Pivot Strategy:</strong> {evaluations[q.id].constructive_feedback}
                   </div>
                   
-                  {/* Dropdown Blueprint wrapper */}
                   <details style={{ borderTop: '1px solid #222', paddingTop: '12px' }}>
                     <summary style={{ color: '#2196f3', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', userSelect: 'none' }}>
                       View Ideal Answer Blueprint
